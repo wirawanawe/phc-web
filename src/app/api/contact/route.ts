@@ -70,7 +70,7 @@ Waktu: ${new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}
       };
 
       // Log the email data for now
-      console.log("Email to be sent:", emailData);
+      // console.log("Email to be sent:", emailData);
 
       // Simulate email sending delay
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -82,18 +82,18 @@ Waktu: ${new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}
       // 3. Nodemailer with Gmail SMTP
       // 4. EmailJS server-side integration
     } catch (emailError) {
-      console.error("Email sending error:", emailError);
+      // console.error("Email sending error:", emailError);
       // Don't fail the request if email fails, just log it
     }
 
     // Log the contact form submission
-    console.log("Contact form submission:", {
-      name,
-      email,
-      phone,
-      message,
-      timestamp: new Date().toISOString(),
-    });
+    // console.log("Contact form submission:", {
+    //   name,
+    //   email,
+    //   phone,
+    //   message,
+    //   timestamp: new Date().toISOString(),
+    // });
 
     return NextResponse.json(
       {
@@ -103,7 +103,7 @@ Waktu: ${new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}
       { status: 200 }
     );
   } catch (error) {
-    console.error("Contact form error:", error);
+    // console.error("Contact form error:", error);
     return NextResponse.json(
       { error: "Terjadi kesalahan server. Silakan coba lagi." },
       { status: 500 }

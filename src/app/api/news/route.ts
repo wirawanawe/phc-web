@@ -21,12 +21,6 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get("query") || "indonesia kesehatan";
     const pageSize = searchParams.get("pageSize") || "10";
 
-    console.log("API Keys:", {
-      NEWS_API_KEY: NEWS_API_KEY ? "Set" : "Not set",
-      GNEWS_API_KEY: GNEWS_API_KEY ? "Set" : "Not set",
-      MEDICAL_NEWS_API_KEY: MEDICAL_NEWS_API_KEY ? "Set" : "Not set",
-    });
-
     let newsData = [];
 
     // Try NewsAPI first
