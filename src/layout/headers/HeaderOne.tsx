@@ -53,21 +53,37 @@ const HeaderOne = () => {
                     <Image
                       src={HeaderLogo}
                       style={{ height: "auto" }}
-                      alt="theme-pure"
+                      alt="DoctorPHC"
                     />
                   </Link>
                 </div>
               </div>
               <div className="col-xl-9 col-lg-9 col-md-6 col-6">
-                <div className="header__menu f-right">
+                <div className="header__menu f-right d-none d-lg-block">
                   <NavMenu />
                 </div>
                 <div className="side-menu-icon d-lg-none text-end">
                   <button
                     className="side-toggle border-0 bg-transparent"
                     onClick={() => setIsOpenMenu(true)}
+                    style={{
+                      fontSize: "24px",
+                      color: "#223645",
+                      padding: "8px",
+                      borderRadius: "4px",
+                      transition: "all 0.3s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor =
+                        "rgba(225, 36, 84, 0.1)";
+                      e.currentTarget.style.color = "#e12454";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                      e.currentTarget.style.color = "#223645";
+                    }}
                   >
-                    <i className="fas fa-bars"></i>{" "}
+                    <i className="fas fa-bars"></i>
                   </button>
                 </div>
               </div>

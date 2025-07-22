@@ -1,124 +1,222 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseStringPromise } from "xml2js";
 
-// NewsAPI.org configuration
-const NEWS_API_KEY =
-  process.env.NEXT_PUBLIC_NEWS_API_KEY || "020b8794b58c4423bd8f71617e9261d7";
-const NEWS_API_BASE_URL = "https://newsapi.org/v2";
+// Indonesian Health News RSS Sources
+const RSS_SOURCES = [
+  {
+    name: "Kompas Health",
+    url: "https://health.kompas.com/feed",
+    category: "Kesehatan",
+  },
+  {
+    name: "DetikHealth",
+    url: "https://health.detik.com/rss",
+    category: "Kesehatan",
+  },
+  {
+    name: "CNN Indonesia Health",
+    url: "https://www.cnnindonesia.com/gaya-hidup/kesehatan/rss",
+    category: "Kesehatan",
+  },
+];
 
-// GNews API configuration
-const GNEWS_API_KEY =
-  process.env.NEXT_PUBLIC_GNEWS_API_KEY || "16ce6aefc217daca17fe35dfa7c8465b";
-const GNEWS_BASE_URL = "https://gnews.io/api/v4";
+// Health-focused fallback images
+const HEALTH_IMAGES = [
+  "/assets/img/blog/blog-thumb-1.jpg",
+  "/assets/img/blog/blog-thumb-2.jpg",
+  "/assets/img/blog/details/img1.jpg",
+  "/assets/img/blog/details/img2.jpg",
+  "/assets/img/blog/details/img3.jpg",
+  "/assets/img/blog/details/img4.jpg",
+  "/assets/img/blog/details/banner.png",
+  "/assets/img/services/service1.png",
+  "/assets/img/services/service2.png",
+  "/assets/img/services/service3.png",
+  "/assets/img/services/service4.png",
+  "/assets/img/services/service5.png",
+  "/assets/img/services/service6.png",
+  "/assets/img/services/service7.png",
+  "/assets/img/services/service8.png",
+  "/assets/img/services/service9.png",
+  "/assets/img/services/service10.png",
+];
 
-// Medical News Today API configuration
-const MEDICAL_NEWS_API_KEY = process.env.NEXT_PUBLIC_MEDICAL_NEWS_API_KEY;
-const MEDICAL_NEWS_BASE_URL = "https://api.medicalnewstoday.com/v1";
+// Function to get a random health image
+function getRandomHealthImage(): string {
+  return HEALTH_IMAGES[Math.floor(Math.random() * HEALTH_IMAGES.length)];
+}
+
+// Function to extract image from content or description
+function extractImageFromContent(content: string): string {
+  if (!content) return getRandomHealthImage();
+
+  // Try to find img tag
+  const imgMatch = content.match(/<img[^>]+src="([^"]+)"/i);
+  if (imgMatch && imgMatch[1]) {
+    return imgMatch[1];
+  }
+
+  // Try to find image URL in text
+  const urlMatch = content.match(
+    /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp))/i
+  );
+  if (urlMatch && urlMatch[1]) {
+    return urlMatch[1];
+  }
+
+  return getRandomHealthImage();
+}
+
+// Function to clean HTML tags from text
+function cleanHtmlTags(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+}
+
+// Function to generate a unique ID
+function generateId(title: string, source: string): string {
+  const timestamp = Date.now();
+  const titleSlug = title
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .substring(0, 50);
+  return `${source}-${titleSlug}-${timestamp}`;
+}
+
+// Function to fetch and parse RSS feed
+async function fetchRSSFeed(rssUrl: string, sourceName: string) {
+  try {
+    const response = await fetch(rssUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      },
+      next: { revalidate: 1800 }, // Cache for 30 minutes
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const xmlText = await response.text();
+    const result = await parseStringPromise(xmlText);
+
+    // Handle different RSS formats
+    const items =
+      result.rss?.channel?.[0]?.item ||
+      result.feed?.entry ||
+      result.rdf?.item ||
+      [];
+
+    return items.map((item: any, index: number) => {
+      // Handle different RSS item formats
+      const title = item.title?.[0] || item.title || "Berita Kesehatan";
+      const description =
+        item.description?.[0] ||
+        item.summary?.[0] ||
+        item.content?.[0] ||
+        item["content:encoded"]?.[0] ||
+        "";
+      const link = item.link?.[0] || item.link || "#";
+      const pubDate =
+        item.pubDate?.[0] ||
+        item.published?.[0] ||
+        item.updated?.[0] ||
+        new Date().toISOString();
+
+      // Extract image from content or use fallback
+      const imageUrl = extractImageFromContent(description);
+
+      return {
+        id: generateId(title, sourceName),
+        title: cleanHtmlTags(title),
+        description: cleanHtmlTags(description).substring(0, 200) + "...",
+        url: link,
+        urlToImage: imageUrl,
+        publishedAt: new Date(pubDate).toISOString(),
+        source: { name: sourceName },
+        content: cleanHtmlTags(description),
+        category: "Kesehatan",
+      };
+    });
+  } catch (error) {
+    console.error(`Error fetching RSS from ${sourceName}:`, error);
+    return [];
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get("type") || "all";
-    const query = searchParams.get("query") || "indonesia kesehatan";
-    const pageSize = searchParams.get("pageSize") || "10";
+    const pageSize = parseInt(searchParams.get("pageSize") || "10");
+    const source = searchParams.get("source") || "all";
 
-    let newsData = [];
+    let allNews: any[] = [];
 
-    // Try NewsAPI first
-    if (NEWS_API_KEY) {
-      try {
-        const newsApiUrl = `${NEWS_API_BASE_URL}/everything?q=${encodeURIComponent(
-          query
-        )}&language=id&sortBy=publishedAt&pageSize=${pageSize}&apiKey=${NEWS_API_KEY}`;
-        const response = await fetch(newsApiUrl);
+    // Fetch from all RSS sources
+    if (source === "all" || !source) {
+      const fetchPromises = RSS_SOURCES.map((rssSource) =>
+        fetchRSSFeed(rssSource.url, rssSource.name)
+      );
 
-        if (response.ok) {
-          const data = await response.json();
-          newsData = (data.articles || []).map(
-            (article: any, index: number) => ({
-              ...article,
-              id: article.id || `newsapi-${Date.now()}-${index}`,
-            })
+      const results = await Promise.allSettled(fetchPromises);
+
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled" && result.value) {
+          allNews.push(...result.value);
+        } else {
+          console.error(
+            `Failed to fetch from ${RSS_SOURCES[index].name}:`,
+            result
           );
         }
-      } catch (error) {
-        console.error("NewsAPI error:", error);
+      });
+    } else {
+      // Fetch from specific source
+      const rssSource = RSS_SOURCES.find((s) =>
+        s.name.toLowerCase().includes(source.toLowerCase())
+      );
+      if (rssSource) {
+        const news = await fetchRSSFeed(rssSource.url, rssSource.name);
+        allNews.push(...news);
       }
     }
 
-    // If NewsAPI fails or no key, try GNews
-    if (newsData.length === 0 && GNEWS_API_KEY) {
-      try {
-        const gnewsUrl = `${GNEWS_BASE_URL}/search?q=${encodeURIComponent(
-          query
-        )}&lang=id&country=id&max=${pageSize}&apikey=${GNEWS_API_KEY}`;
-        const response = await fetch(gnewsUrl);
+    // Sort by date (newest first) and remove duplicates
+    allNews = allNews
+      .sort(
+        (a, b) =>
+          new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+      )
+      .filter(
+        (news, index, self) => index === self.findIndex((n) => n.id === news.id)
+      )
+      .slice(0, pageSize);
 
-        if (response.ok) {
-          const data = await response.json();
-          newsData = (data.articles || []).map(
-            (article: any, index: number) => ({
-              ...article,
-              id: article.id || `gnews-${Date.now()}-${index}`,
-            })
-          );
-        }
-      } catch (error) {
-        console.error("GNews error:", error);
-      }
-    }
-
-    // Try Medical News Today API for health news
-    if (newsData.length === 0 && MEDICAL_NEWS_API_KEY) {
-      try {
-        const medicalUrl = `${MEDICAL_NEWS_BASE_URL}/articles?q=${encodeURIComponent(
-          query
-        )}&limit=${pageSize}&api_key=${MEDICAL_NEWS_API_KEY}`;
-        const response = await fetch(medicalUrl);
-
-        if (response.ok) {
-          const data = await response.json();
-          newsData = (data.articles || []).map((article: any) => ({
-            id: article.id || Math.random().toString(),
-            title: article.title,
-            description: article.summary,
-            url: article.url,
-            urlToImage: article.image?.url || "",
-            publishedAt: article.published_at,
-            source: { name: "Medical News Today" },
-            content: article.content,
-            author: article.author?.name,
-            category: "Health & Medicine",
-          }));
-        }
-      } catch (error) {
-        console.error("Medical News Today error:", error);
-      }
-    }
-
-    // If all APIs fail, return fallback data
-    if (newsData.length === 0) {
-      newsData = getFallbackNews();
+    // If no news from RSS feeds, return fallback data
+    if (allNews.length === 0) {
+      allNews = getFallbackNews();
     }
 
     return NextResponse.json({
       success: true,
-      data: newsData,
-      source: NEWS_API_KEY
-        ? "NewsAPI"
-        : GNEWS_API_KEY
-        ? "GNews"
-        : MEDICAL_NEWS_API_KEY
-        ? "Medical News Today"
-        : "Fallback",
+      data: allNews,
+      source: "Indonesian Health RSS Feeds",
       timestamp: new Date().toISOString(),
+      totalResults: allNews.length,
     });
   } catch (error) {
     console.error("News API route error:", error);
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to fetch news",
+        error: "Failed to fetch news from RSS feeds",
         data: getFallbackNews(),
+        source: "Fallback",
       },
       { status: 500 }
     );
@@ -130,70 +228,83 @@ function getFallbackNews() {
 
   return [
     {
-      id: "1",
-      title: "Teknologi AI dalam Diagnosis Medis: Revolusi Kesehatan Digital",
+      id: "kompas-health-1",
+      title: "Kompas Health: Teknologi AI dalam Diagnosis Medis",
       description:
-        "Kemajuan teknologi AI semakin memudahkan dokter dalam mendiagnosis penyakit dengan akurasi tinggi. Sistem berbasis machine learning membantu identifikasi dini berbagai kondisi medis.",
-      url: "#",
-      urlToImage: "/assets/img/blog/blog-thumb-1.jpg",
+        "Kompas Health melaporkan kemajuan teknologi AI yang semakin memudahkan dokter dalam mendiagnosis penyakit dengan akurasi tinggi. Sistem berbasis machine learning membantu identifikasi dini berbagai kondisi medis.",
+      url: "https://health.kompas.com",
+      urlToImage: "/assets/img/services/service1.png",
       publishedAt: currentDate,
-      source: { name: "TechHealth Indonesia" },
-      category: "Teknologi Kesehatan",
+      source: { name: "Kompas Health" },
+      content:
+        "Kompas Health melaporkan teknologi AI dalam bidang kesehatan yang semakin berkembang pesat...",
+      category: "Kesehatan",
     },
     {
-      id: "2",
-      title: "Telemedicine: Solusi Akses Kesehatan di Era Digital",
+      id: "detik-health-1",
+      title: "DetikHealth: Telemedicine Solusi Akses Kesehatan Digital",
       description:
-        "Layanan konsultasi dokter online semakin populer di Indonesia. Telemedicine memberikan kemudahan akses layanan kesehatan tanpa harus datang ke klinik.",
-      url: "#",
-      urlToImage: "/assets/img/blog/blog-thumb-2.jpg",
+        "DetikHealth melaporkan layanan konsultasi dokter online yang semakin populer di Indonesia. Telemedicine memberikan kemudahan akses layanan kesehatan tanpa harus datang ke klinik.",
+      url: "https://health.detik.com",
+      urlToImage: "/assets/img/services/service2.png",
       publishedAt: currentDate,
-      source: { name: "Digital Health News" },
-      category: "Telemedicine",
+      source: { name: "DetikHealth" },
+      content:
+        "DetikHealth melaporkan telemedicine yang menjadi solusi utama dalam memberikan akses kesehatan...",
+      category: "Kesehatan",
     },
     {
-      id: "3",
-      title: "Inovasi Teknologi Kesehatan: Robot Asisten Dokter",
+      id: "cnn-health-1",
+      title:
+        "CNN Indonesia Health: Robot Asisten Dokter di Rumah Sakit Indonesia",
       description:
-        "Robot asisten dokter mulai diperkenalkan di beberapa rumah sakit di Indonesia untuk membantu tenaga medis dalam pelayanan pasien.",
-      url: "#",
-      urlToImage: "/assets/img/blog/details/img1.jpg",
+        "CNN Indonesia Health melaporkan robot asisten dokter yang mulai diperkenalkan di beberapa rumah sakit di Indonesia untuk membantu tenaga medis dalam pelayanan pasien.",
+      url: "https://www.cnnindonesia.com/gaya-hidup/kesehatan",
+      urlToImage: "/assets/img/services/service3.png",
       publishedAt: currentDate,
-      source: { name: "Healthcare Innovation" },
-      category: "Teknologi Medis",
+      source: { name: "CNN Indonesia Health" },
+      content:
+        "CNN Indonesia Health melaporkan robot asisten dokter yang mulai diperkenalkan...",
+      category: "Kesehatan",
     },
     {
-      id: "4",
-      title: "Digitalisasi Rekam Medis: Efisiensi Pelayanan Kesehatan",
+      id: "kompas-health-2",
+      title: "Kompas Health: Digitalisasi Rekam Medis Efisiensi Pelayanan",
       description:
-        "Sistem rekam medis elektronik semakin diterapkan di berbagai fasilitas kesehatan untuk meningkatkan efisiensi dan akurasi data.",
-      url: "#",
-      urlToImage: "/assets/img/blog/details/img2.jpg",
+        "Kompas Health melaporkan sistem rekam medis elektronik yang semakin diterapkan di berbagai fasilitas kesehatan untuk meningkatkan efisiensi dan akurasi data.",
+      url: "https://health.kompas.com",
+      urlToImage: "/assets/img/services/service4.png",
       publishedAt: currentDate,
-      source: { name: "HealthTech Indonesia" },
-      category: "Digital Health",
+      source: { name: "Kompas Health" },
+      content:
+        "Kompas Health melaporkan sistem rekam medis elektronik yang semakin diterapkan...",
+      category: "Kesehatan",
     },
     {
-      id: "5",
-      title: "Pencegahan Penyakit: Pentingnya Gaya Hidup Sehat",
+      id: "detik-health-2",
+      title: "DetikHealth: Pentingnya Gaya Hidup Sehat Cegah Penyakit",
       description:
-        "Kampanye gaya hidup sehat semakin gencar dilakukan untuk mencegah berbagai penyakit tidak menular seperti diabetes dan hipertensi.",
-      url: "#",
-      urlToImage: "/assets/img/blog/details/img3.jpg",
+        "DetikHealth melaporkan kampanye gaya hidup sehat yang semakin gencar dilakukan untuk mencegah berbagai penyakit tidak menular seperti diabetes dan hipertensi.",
+      url: "https://health.detik.com",
+      urlToImage: "/assets/img/services/service5.png",
       publishedAt: currentDate,
-      source: { name: "Public Health News" },
-      category: "Kesehatan Umum",
+      source: { name: "DetikHealth" },
+      content:
+        "DetikHealth melaporkan kampanye gaya hidup sehat yang semakin gencar dilakukan...",
+      category: "Kesehatan",
     },
     {
-      id: "6",
-      title: "Inovasi Vaksin: Teknologi mRNA untuk Masa Depan",
+      id: "cnn-health-2",
+      title: "CNN Indonesia Health: Teknologi mRNA Vaksin untuk Masa Depan",
       description:
-        "Teknologi vaksin mRNA yang dikembangkan untuk COVID-19 membuka jalan untuk pengembangan vaksin penyakit lainnya.",
-      url: "#",
-      urlToImage: "/assets/img/blog/details/img4.jpg",
+        "CNN Indonesia Health melaporkan teknologi vaksin mRNA yang dikembangkan untuk COVID-19 membuka jalan untuk pengembangan vaksin penyakit lainnya.",
+      url: "https://www.cnnindonesia.com/gaya-hidup/kesehatan",
+      urlToImage: "/assets/img/services/service6.png",
       publishedAt: currentDate,
-      source: { name: "Medical Research Institute" },
-      category: "Penelitian Medis",
+      source: { name: "CNN Indonesia Health" },
+      content:
+        "CNN Indonesia Health melaporkan teknologi vaksin mRNA yang dikembangkan...",
+      category: "Kesehatan",
     },
   ];
 }

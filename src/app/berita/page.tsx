@@ -12,23 +12,153 @@ import {
 import HeaderOne from "@/layout/headers/HeaderOne";
 import FooterOne from "@/layout/footers/FooterOne";
 
+// Add custom styles for better image handling
+const newsStyles = `
+  .news-thumbnail {
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  
+  .news-thumbnail:hover {
+    transform: scale(1.05);
+  }
+  
+  .popular-thumbnail {
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  
+  .popular-thumbnail:hover {
+    transform: scale(1.1);
+  }
+  
+  .news-image-container {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s ease;
+  }
+  
+  .news-image-container:hover {
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+  }
+  
+  .popular-image-container {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s ease;
+  }
+  
+  .popular-image-container:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+  
+  .news-item {
+    transition: transform 0.2s ease;
+  }
+  
+  .news-item:hover {
+    transform: translateY(-2px);
+  }
+  
+  .news-title a {
+    color: #333;
+    text-decoration: none;
+    transition: color 0.3s ease;
+  }
+  
+  .news-title a:hover {
+    color: #007bff;
+  }
+  
+  .news-category {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  
+  .news-meta span {
+    margin-right: 15px;
+    font-size: 0.85rem;
+    color: #666;
+  }
+  
+  .news-meta i {
+    margin-right: 4px;
+    color: #007bff;
+  }
+`;
+
 const NewsListingPage = () => {
   const { featuredNews, recentNews, loading, refreshNews } = useNews();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("kesehatan");
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState("latest");
 
-  // Combine all news
+  // Combine all news and filter for health-related content only
   const allNews = [...featuredNews, ...recentNews];
 
+  // Health-related keywords for filtering
+  const healthKeywords = [
+    "kesehatan",
+    "medis",
+    "rumah sakit",
+    "dokter",
+    "obat",
+    "vaksin",
+    "covid",
+    "pandemi",
+    "penyakit",
+    "pengobatan",
+    "teknologi kesehatan",
+    "digital health",
+    "telemedicine",
+    "healthcare",
+    "klinik",
+    "apotek",
+    "farmasi",
+    "laboratorium",
+    "radiologi",
+    "bedah",
+    "gigi",
+    "mata",
+    "jantung",
+    "otak",
+    "kanker",
+    "diabetes",
+    "hipertensi",
+    "stroke",
+    "asthma",
+    "alergi",
+    "ai",
+    "robot",
+    "digital",
+    "inovasi",
+    "penelitian",
+  ];
+
+  // Filter news to only include health-related content
+  const healthNews = allNews.filter((news) => {
+    const title = news.title.toLowerCase();
+    const description = news.description.toLowerCase();
+    const category = news.category?.toLowerCase() || "";
+
+    return healthKeywords.some(
+      (keyword) =>
+        title.includes(keyword) ||
+        description.includes(keyword) ||
+        category.includes(keyword)
+    );
+  });
+
   // Filter news based on search and category
-  const filteredNews = allNews.filter((news) => {
+  const filteredNews = healthNews.filter((news) => {
     const matchesSearch =
       news.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       news.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory =
-      selectedCategory === "all" ||
+      selectedCategory === "kesehatan" ||
       news.category?.toLowerCase().includes(selectedCategory.toLowerCase());
     return matchesSearch && matchesCategory;
   });
@@ -53,51 +183,68 @@ const NewsListingPage = () => {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedNews = sortedNews.slice(startIndex, startIndex + itemsPerPage);
 
-  // Categories
+  // Health-focused categories
   const categories = [
     {
-      id: "all",
-      name: "Semua Kategori",
-      icon: "fas fa-newspaper",
-      count: allNews.length,
-    },
-    {
       id: "kesehatan",
-      name: "Kesehatan",
+      name: "Semua Berita Kesehatan",
       icon: "fas fa-heartbeat",
-      count: allNews.filter((n) =>
-        n.category?.toLowerCase().includes("kesehatan")
-      ).length,
+      count: healthNews.length,
     },
     {
       id: "teknologi",
       name: "Teknologi Medis",
       icon: "fas fa-microchip",
-      count: allNews.filter((n) =>
-        n.category?.toLowerCase().includes("teknologi")
+      count: healthNews.filter(
+        (n) =>
+          n.title.toLowerCase().includes("teknologi") ||
+          n.description.toLowerCase().includes("teknologi") ||
+          n.category?.toLowerCase().includes("teknologi")
       ).length,
     },
     {
       id: "telemedicine",
       name: "Telemedicine",
       icon: "fas fa-video",
-      count: allNews.filter((n) =>
-        n.category?.toLowerCase().includes("telemedicine")
+      count: healthNews.filter(
+        (n) =>
+          n.title.toLowerCase().includes("telemedicine") ||
+          n.description.toLowerCase().includes("telemedicine") ||
+          n.category?.toLowerCase().includes("telemedicine")
       ).length,
     },
     {
       id: "ai",
       name: "AI & Machine Learning",
       icon: "fas fa-robot",
-      count: allNews.filter((n) => n.category?.toLowerCase().includes("ai"))
-        .length,
+      count: healthNews.filter(
+        (n) =>
+          n.title.toLowerCase().includes("ai") ||
+          n.title.toLowerCase().includes("artificial intelligence") ||
+          n.description.toLowerCase().includes("ai") ||
+          n.category?.toLowerCase().includes("ai")
+      ).length,
     },
     {
       id: "digital-health",
       name: "Digital Health",
       icon: "fas fa-mobile-alt",
-      count: allNews.filter((n) =>
-        n.category?.toLowerCase().includes("digital")
+      count: healthNews.filter(
+        (n) =>
+          n.title.toLowerCase().includes("digital") ||
+          n.description.toLowerCase().includes("digital") ||
+          n.category?.toLowerCase().includes("digital")
+      ).length,
+    },
+    {
+      id: "penelitian",
+      name: "Penelitian Medis",
+      icon: "fas fa-flask",
+      count: healthNews.filter(
+        (n) =>
+          n.title.toLowerCase().includes("penelitian") ||
+          n.description.toLowerCase().includes("penelitian") ||
+          n.category?.toLowerCase().includes("penelitian")
       ).length,
     },
   ];
@@ -109,6 +256,7 @@ const NewsListingPage = () => {
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{ __html: newsStyles }} />
       <HeaderOne />
       <main>
         {/* Hero Section */}
@@ -123,10 +271,11 @@ const NewsListingPage = () => {
             <div className="row">
               <div className="col-12">
                 <div className="breadcrumb-content text-center">
-                  <h1>Berita & Artikel Kesehatan</h1>
-                  <p className="lead">
+                  <h1>Berita Kesehatan Terkini</h1>
+                  <p className="lead text-white">
                     Dapatkan informasi terbaru seputar kesehatan, teknologi
-                    medis, dan inovasi digital health
+                    medis, dan inovasi digital health yang relevan dengan
+                    kebutuhan Anda
                   </p>
                   <nav aria-label="breadcrumb">
                     <ol className="breadcrumb justify-content-center">
@@ -139,7 +288,7 @@ const NewsListingPage = () => {
                         className="breadcrumb-item active"
                         aria-current="page"
                       >
-                        Berita
+                        Berita Kesehatan
                       </li>
                     </ol>
                   </nav>
@@ -165,7 +314,7 @@ const NewsListingPage = () => {
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="Cari berita..."
+                      placeholder="Cari berita kesehatan..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -282,26 +431,71 @@ const NewsListingPage = () => {
                                   news.id || generateNewsSlug(news.title)
                                 }`}
                               >
-                                <Image
-                                  src={validateImageUrl(
-                                    news.urlToImage ||
-                                      "/assets/img/blog/details/2.jpg"
-                                  )}
-                                  alt={news.title}
-                                  width={350}
-                                  height={220}
+                                <div
+                                  className="news-image-container"
                                   style={{
-                                    width: "100%",
-                                    height: "220px",
-                                    objectFit: "cover",
+                                    position: "relative",
+                                    overflow: "hidden",
                                     borderRadius: "8px",
                                   }}
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.src =
-                                      "/assets/img/blog/details/2.jpg";
-                                  }}
-                                />
+                                >
+                                  <Image
+                                    src={validateImageUrl(news.urlToImage)}
+                                    alt={news.title}
+                                    width={350}
+                                    height={220}
+                                    style={{
+                                      width: "100%",
+                                      height: "220px",
+                                      objectFit: "cover",
+                                      borderRadius: "8px",
+                                      transition: "transform 0.3s ease",
+                                    }}
+                                    onError={(e) => {
+                                      const target =
+                                        e.target as HTMLImageElement;
+                                      // Try different fallback images based on category
+                                      const fallbackImages = [
+                                        "/assets/img/blog/blog-thumb-1.jpg",
+                                        "/assets/img/blog/blog-thumb-2.jpg",
+                                        "/assets/img/blog/details/img1.jpg",
+                                        "/assets/img/blog/details/img2.jpg",
+                                        "/assets/img/blog/details/img3.jpg",
+                                        "/assets/img/blog/details/img4.jpg",
+                                        "/assets/img/blog/details/banner.png",
+                                      ];
+                                      const randomFallback =
+                                        fallbackImages[
+                                          Math.floor(
+                                            Math.random() *
+                                              fallbackImages.length
+                                          )
+                                        ];
+                                      target.src = randomFallback;
+                                    }}
+                                    onLoad={(e) => {
+                                      const target =
+                                        e.target as HTMLImageElement;
+                                      target.style.opacity = "1";
+                                    }}
+                                    className="news-thumbnail"
+                                    priority={index < 3} // Prioritize first 3 images
+                                  />
+                                  {/* Image overlay for better text readability */}
+                                  <div
+                                    className="news-image-overlay"
+                                    style={{
+                                      position: "absolute",
+                                      bottom: 0,
+                                      left: 0,
+                                      right: 0,
+                                      height: "60px",
+                                      background:
+                                        "linear-gradient(transparent, rgba(0,0,0,0.3))",
+                                      pointerEvents: "none",
+                                    }}
+                                  />
+                                </div>
                               </Link>
                             </div>
                           </div>
@@ -310,7 +504,7 @@ const NewsListingPage = () => {
                               <div className="news-meta mb-10">
                                 <span className="news-category">
                                   <i className="fas fa-tag"></i>
-                                  {news.category || "Berita Terkini"}
+                                  {news.category || "Berita Kesehatan"}
                                 </span>
                                 <span className="news-date">
                                   <i className="far fa-calendar"></i>
@@ -350,17 +544,34 @@ const NewsListingPage = () => {
                   </div>
                 ) : (
                   <div className="no-news-found text-center py-5">
-                    <i className="fas fa-newspaper fa-3x text-muted mb-3"></i>
-                    <h4>Tidak ada berita ditemukan</h4>
-                    <p>Coba ubah filter pencarian Anda</p>
+                    <i className="fas fa-heartbeat fa-3x text-muted mb-3"></i>
+                    <h4>Tidak ada berita kesehatan ditemukan</h4>
+                    <p>Coba ubah filter pencarian Anda atau perbarui berita</p>
                     <button
-                      className="btn btn-primary"
+                      className="btn btn-primary me-2"
                       onClick={() => {
                         setSearchTerm("");
-                        setSelectedCategory("all");
+                        setSelectedCategory("kesehatan");
                       }}
                     >
                       Reset Filter
+                    </button>
+                    <button
+                      className="btn btn-outline-primary"
+                      onClick={refreshNews}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <>
+                          <i className="fas fa-spinner fa-spin me-2"></i>
+                          Memuat...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-sync-alt me-2"></i>
+                          Perbarui Berita
+                        </>
+                      )}
                     </button>
                   </div>
                 )}
@@ -434,9 +645,9 @@ const NewsListingPage = () => {
                         borderRadius: "8px",
                       }}
                     >
-                      <h5>Perbarui Berita</h5>
+                      <h5>Perbarui Berita Kesehatan</h5>
                       <p className="text-muted small mb-3">
-                        Dapatkan berita terbaru dari media online
+                        Dapatkan berita kesehatan terbaru dari media online
                       </p>
                       <button
                         onClick={refreshNews}
@@ -458,9 +669,9 @@ const NewsListingPage = () => {
                     </div>
                   </div>
 
-                  {/* Popular News */}
+                  {/* Popular Health News */}
                   <div className="sidebar-widget mb-40">
-                    <h4 className="widget-title">Berita Populer</h4>
+                    <h4 className="widget-title">Berita Kesehatan Populer</h4>
                     <div className="popular-news">
                       {featuredNews.slice(0, 3).map((news, index) => (
                         <div
@@ -473,25 +684,51 @@ const NewsListingPage = () => {
                                 news.id || generateNewsSlug(news.title)
                               }`}
                             >
-                              <Image
-                                src={validateImageUrl(
-                                  news.urlToImage ||
-                                    "/assets/img/blog/details/2.jpg"
-                                )}
-                                alt={news.title}
-                                width={100}
-                                height={70}
+                              <div
+                                className="popular-image-container"
                                 style={{
-                                  width: "100%",
-                                  height: "70px",
-                                  objectFit: "cover",
+                                  position: "relative",
+                                  overflow: "hidden",
                                   borderRadius: "6px",
                                 }}
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = "/assets/img/blog/details/2.jpg";
-                                }}
-                              />
+                              >
+                                <Image
+                                  src={validateImageUrl(news.urlToImage)}
+                                  alt={news.title}
+                                  width={100}
+                                  height={70}
+                                  style={{
+                                    width: "100%",
+                                    height: "70px",
+                                    objectFit: "cover",
+                                    borderRadius: "6px",
+                                    transition: "transform 0.3s ease",
+                                  }}
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    const fallbackImages = [
+                                      "/assets/img/blog/blog-thumb-1.jpg",
+                                      "/assets/img/blog/blog-thumb-2.jpg",
+                                      "/assets/img/blog/details/img1.jpg",
+                                      "/assets/img/blog/details/img2.jpg",
+                                      "/assets/img/blog/details/img3.jpg",
+                                      "/assets/img/blog/details/img4.jpg",
+                                    ];
+                                    const randomFallback =
+                                      fallbackImages[
+                                        Math.floor(
+                                          Math.random() * fallbackImages.length
+                                        )
+                                      ];
+                                    target.src = randomFallback;
+                                  }}
+                                  onLoad={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.opacity = "1";
+                                  }}
+                                  className="popular-thumbnail"
+                                />
+                              </div>
                             </Link>
                           </div>
                           <div className="popular-news-content">
@@ -513,9 +750,9 @@ const NewsListingPage = () => {
                     </div>
                   </div>
 
-                  {/* Categories */}
+                  {/* Health Categories */}
                   <div className="sidebar-widget mb-40">
-                    <h4 className="widget-title">Kategori</h4>
+                    <h4 className="widget-title">Kategori Kesehatan</h4>
                     <ul className="category-list">
                       {categories.slice(1).map((category) => (
                         <li key={category.id}>
@@ -529,9 +766,9 @@ const NewsListingPage = () => {
                     </ul>
                   </div>
 
-                  {/* Tags */}
+                  {/* Health Tags */}
                   <div className="sidebar-widget">
-                    <h4 className="widget-title">Tag Populer</h4>
+                    <h4 className="widget-title">Tag Kesehatan Populer</h4>
                     <div className="tag-cloud">
                       <Link href="/berita/tag/ai" className="tag-item">
                         AI
@@ -562,6 +799,12 @@ const NewsListingPage = () => {
                       </Link>
                       <Link href="/berita/tag/rumah-sakit" className="tag-item">
                         Rumah Sakit
+                      </Link>
+                      <Link href="/berita/tag/penelitian" className="tag-item">
+                        Penelitian
+                      </Link>
+                      <Link href="/berita/tag/obat" className="tag-item">
+                        Obat
                       </Link>
                     </div>
                   </div>

@@ -31,6 +31,7 @@ const partnerSliderSettings = {
   autoplaySpeed: 0,
   cssEase: "linear",
   pauseOnHover: true,
+  arrows: false,
   responsive: [
     {
       breakpoint: 1200,

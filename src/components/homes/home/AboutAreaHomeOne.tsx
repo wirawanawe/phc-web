@@ -15,7 +15,7 @@ interface about_content_type {
 }
 const about_content: about_content_type = {
   sub_title: "Tentang Kami",
-  title: "Cerita Singkat Tentang Doctor PHC Indonesia.",
+  title: "Doctor PHC Indonesia.",
   sm_des_1:
     "PT DoctorPHC Indonesia adalah perusahaan teknologi kesehatan yang berfokus pada pengembangan solusi digital terintegrasi untuk mendukung sistem layanan kesehatan di Indonesia, khususnya pada fasilitas kesehatan tingkat pertama seperti klinik dan layanan kesehatan kerja.",
   sm_des_2:
